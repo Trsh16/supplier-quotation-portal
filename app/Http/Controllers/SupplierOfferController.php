@@ -8,7 +8,10 @@ use App\Models\Supplier;
 use App\Models\SupplierSalesContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class SupplierOfferController extends Controller
 {
@@ -39,25 +42,34 @@ class SupplierOfferController extends Controller
             'sales_phone' => ['nullable', 'string', 'max:50'],
 
             'standard_good_id' => [
-    'required', 'integer', 'exists:standard_goods,id',
-],
+                'required',
+                'integer',
+                'exists:standard_goods,id',
+            ],
             'supplier_item_name' => ['required', 'string', 'max:255'],
             'supplier_item_code' => ['nullable', 'string', 'max:100'],
             'supplier_unit_text' => ['required', 'string', 'max:100'],
             'unit_id' => [
-    'required', 'integer', 'exists:measurement_units,id',
-],
+                'required',
+                'integer',
+                'exists:measurement_units,id',
+            ],
             'quoted_price' => ['required', 'numeric', 'min:0.01'],
-            'minimum_order_quantity' => ['required', 'numeric', 'min:0.0001'],
+            'minimum_order_quantity' => [
+                'required',
+                'numeric',
+                'min:0.0001',
+            ],
             'vat_type' => ['required', 'in:included,excluded'],
-'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'valid_until' => ['required', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $token = (string) Str::uuid();
 
-        DB::transaction(function () use ($data, $token) {
+        // Simpan semua data penawaran dalam satu transaksi database.
+        $quotation = DB::transaction(function () use ($data, $token) {
             $normalizedName = Str::lower(
                 Str::squish($data['company_name'])
             );
@@ -101,9 +113,9 @@ class SupplierOfferController extends Controller
                 'sales_phone' => $data['sales_phone'] ?? null,
                 'currency' => 'IDR',
                 'vat_type' => $data['vat_type'],
-                'vat_rate' => $data['vat_rate'] ?? 0,
+                'vat_rate' => $data['vat_rate'],
                 'valid_from' => now()->toDateString(),
-                'valid_until' => $data['valid_until'] ?? null,
+                'valid_until' => $data['valid_until'],
                 'submitted_at' => now(),
                 'status' => 'submitted',
                 'notes' => $data['notes'] ?? null,
@@ -111,17 +123,55 @@ class SupplierOfferController extends Controller
 
             QuotationItem::create([
                 'quotation_id' => $quotation->id,
-                'standard_good_id' => $data['standard_good_id'] ?? null,
+                'standard_good_id' => $data['standard_good_id'],
                 'supplier_item_name' => $data['supplier_item_name'],
                 'supplier_item_code' => $data['supplier_item_code'] ?? null,
                 'supplier_unit_text' => $data['supplier_unit_text'],
-                'unit_id' => $data['unit_id'] ?? null,
+                'unit_id' => $data['unit_id'],
                 'quantity_in_base_unit' => 1,
                 'quoted_price' => $data['quoted_price'],
                 'minimum_order_quantity' => $data['minimum_order_quantity'],
                 'notes' => $data['notes'] ?? null,
             ]);
+
+            return $quotation;
         });
+
+        // Simulasi email berjalan setelah transaksi berhasil disimpan.
+        // MAIL_MAILER=log akan menulis email ke storage/logs/laravel.log.
+        try {
+            $receiptUrl = route('supplier-offer.receipt', [
+                'token' => $quotation->public_token,
+            ]);
+
+            Mail::raw(
+                "Halo {$data['sales_name']},\n\n"
+                . "Penawaran Anda telah berhasil kami terima.\n\n"
+                . "Perusahaan: {$data['company_name']}\n"
+                . "Nomor referensi: {$quotation->public_token}\n"
+                . "Bukti penerimaan: {$receiptUrl}\n\n"
+                . "Email ini merupakan konfirmasi otomatis dari sistem "
+                . "Portal Penawaran Supplier.",
+                function ($message) use ($data) {
+                    $message
+                        ->to($data['sales_email'])
+                        ->subject(
+                            'Konfirmasi Penerimaan Penawaran Supplier'
+                        );
+                }
+            );
+
+            Log::info('Simulasi email konfirmasi penawaran diproses.', [
+                'quotation_id' => $quotation->id,
+                'recipient' => $data['sales_email'],
+            ]);
+        } catch (Throwable $e) {
+            // Email gagal tidak membatalkan penawaran yang sudah tersimpan.
+            Log::warning('Simulasi email konfirmasi gagal.', [
+                'quotation_id' => $quotation->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return redirect()->route('supplier-offer.receipt', [
             'token' => $token,
