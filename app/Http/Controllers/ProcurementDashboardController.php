@@ -121,6 +121,128 @@ class ProcurementDashboardController extends Controller
         ));
     }
 
+public function review(Quotation $quotation)
+{
+    if ($quotation->status !== 'submitted') {
+        return redirect()
+            ->route('procurement.dashboard')
+            ->with('success', 'Status penawaran ini bukan Penawaran Masuk.');
+    }
+
+    $quotation->update([
+        'status' => 'under_review',
+    ]);
+
+    return redirect()
+        ->route('procurement.dashboard')
+        ->with('success', 'Penawaran berhasil ditandai Sedang Ditinjau.');
+}
+
+public function accept(Quotation $quotation)
+{
+    if (!in_array($quotation->status, ['submitted', 'under_review'], true)) {
+        return redirect()
+            ->route('procurement.dashboard')
+            ->with('success', 'Penawaran ini tidak dapat diterima dari status saat ini.');
+    }
+
+    $quotation->update([
+        'status' => 'accepted',
+    ]);
+
+    return redirect()
+        ->route('procurement.dashboard')
+        ->with('success', 'Penawaran berhasil diterima.');
+}
+
+public function edit(Quotation $quotation)
+{
+    $quotation->load('items');
+
+    $item = $quotation->items->first();
+
+    abort_if(!$item, 404, 'Barang pada penawaran ini tidak ditemukan.');
+
+    $goods = DB::table('standard_goods')
+        ->where('is_active', true)
+        ->orderBy('name')
+        ->get();
+
+    $units = DB::table('measurement_units')
+        ->orderBy('name')
+        ->get();
+
+    return view('quotation-edit', compact(
+        'quotation',
+        'item',
+        'goods',
+        'units'
+    ));
+}
+
+public function update(Request $request, Quotation $quotation)
+{
+    $data = $request->validate([
+        'standard_good_id' => [
+            'required', 'integer', 'exists:standard_goods,id',
+        ],
+        'supplier_item_name' => [
+            'required', 'string', 'max:255',
+        ],
+        'supplier_item_code' => [
+            'nullable', 'string', 'max:100',
+        ],
+        'supplier_unit_text' => [
+            'required', 'string', 'max:100',
+        ],
+        'unit_id' => [
+            'required', 'integer', 'exists:measurement_units,id',
+        ],
+        'quoted_price' => [
+            'required', 'numeric', 'min:0.01',
+        ],
+        'minimum_order_quantity' => [
+            'required', 'numeric', 'min:0.0001',
+        ],
+        'vat_type' => [
+            'required', 'in:included,excluded',
+        ],
+        'vat_rate' => [
+            'required', 'numeric', 'min:0', 'max:100',
+        ],
+        'valid_until' => [
+            'nullable', 'date', 'after_or_equal:today',
+        ],
+        'notes' => ['nullable', 'string', 'max:2000'],
+    ]);
+
+    DB::transaction(function () use ($quotation, $data) {
+        $quotation->update([
+            'vat_type' => $data['vat_type'],
+            'vat_rate' => $data['vat_rate'],
+            'valid_until' => $data['valid_until'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        $item = $quotation->items()->firstOrFail();
+
+        $item->update([
+            'standard_good_id' => $data['standard_good_id'],
+            'supplier_item_name' => $data['supplier_item_name'],
+            'supplier_item_code' => $data['supplier_item_code'] ?? null,
+            'supplier_unit_text' => $data['supplier_unit_text'],
+            'unit_id' => $data['unit_id'],
+            'quoted_price' => $data['quoted_price'],
+            'minimum_order_quantity' => $data['minimum_order_quantity'],
+            'notes' => $data['notes'] ?? null,
+        ]);
+    });
+
+    return redirect()
+        ->route('procurement.dashboard')
+        ->with('success', 'Penawaran berhasil diperbarui.');
+}
+
     public function destroy(\App\Models\Quotation $quotation)
 {
     DB::transaction(function () use ($quotation) {

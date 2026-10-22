@@ -33,3 +33,23 @@ Route::delete('/quotations/{quotation}', [
     \App\Http\Controllers\ProcurementDashboardController::class,
     'destroy'
 ])->name('quotations.destroy');
+
+Route::patch('/quotations/{quotation}/review', [
+    ProcurementDashboardController::class,
+    'review',
+])->name('quotations.review');
+
+Route::patch('/quotations/{quotation}/accept', [
+    ProcurementDashboardController::class,
+    'accept',
+])->name('quotations.accept');
+
+Route::get('/quotations/{quotation}/edit', [
+    ProcurementDashboardController::class,
+    'edit',
+])->name('quotations.edit');
+
+Route::put('/quotations/{quotation}', [
+    ProcurementDashboardController::class,
+    'update',
+])->name('quotations.update');

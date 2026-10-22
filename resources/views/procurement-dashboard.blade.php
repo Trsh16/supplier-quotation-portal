@@ -129,6 +129,41 @@
 .delete-button:hover {
     background: #b91c1c;
 }
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 90px;
+}
+
+.action-button {
+    display: inline-block;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 6px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    color: white;
+}
+
+.review-button {
+    background: #d97706;
+}
+
+.accept-button {
+    background: #16a34a;
+}
+
+.edit-button {
+    background: #4f46e5;
+}
+
+.delete-button {
+    background: #dc2626;
+}
         .company { font-weight: 700; margin-bottom: 5px; }
         .subtext { color: #8993a7; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
         .price { font-weight: 750; white-space: nowrap; }
@@ -403,19 +438,58 @@
                                 <td>
                                     <div class="subtext token">{{ $quotation->public_token }}</div>
                                 </td>
-                                <td>
-    <form
-        action="{{ route('quotations.destroy', $quotation) }}"
-        method="POST"
-        onsubmit="return confirm('Yakin ingin menghapus penawaran ini?');"
-    >
-        @csrf
-        @method('DELETE')
+                                
+<td>
+    <div class="action-buttons">
 
-        <button type="submit" class="delete-button">
-            Hapus
-        </button>
-    </form>
+        @if ($status === 'submitted')
+            <form
+                action="{{ route('quotations.review', $quotation) }}"
+                method="POST"
+                onsubmit="return confirm('Mulai meninjau penawaran ini?');"
+            >
+                @csrf
+                @method('PATCH')
+                <button type="submit" class="action-button review-button">
+                    Tinjau
+                </button>
+            </form>
+        @endif
+
+        @if (in_array($status, ['submitted', 'under_review']))
+            <form
+                action="{{ route('quotations.accept', $quotation) }}"
+                method="POST"
+                onsubmit="return confirm('Terima penawaran ini?');"
+            >
+                @csrf
+                @method('PATCH')
+                <button type="submit" class="action-button accept-button">
+                    Terima
+                </button>
+            </form>
+        @endif
+
+        <a
+            href="{{ route('quotations.edit', $quotation) }}"
+            class="action-button edit-button"
+        >
+            Edit
+        </a>
+
+        <form
+            action="{{ route('quotations.destroy', $quotation) }}"
+            method="POST"
+            onsubmit="return confirm('Yakin ingin menghapus penawaran ini?');"
+        >
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="action-button delete-button">
+                Hapus
+            </button>
+        </form>
+
+    </div>
 </td>
                             </tr>
                         @empty
