@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Procurement Dashboard | SupplyFlow</title>
     <style>
+        .layout { min-height: 100vh; }
+        .sidebar { display: none; }
         * { box-sizing: border-box; }
         body {
             margin: 0;
@@ -12,33 +14,6 @@
             color: #172033;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-        .layout { display: flex; min-height: 100vh; }
-        .sidebar {
-            width: 230px;
-            flex-shrink: 0;
-            padding: 28px 18px;
-            background: #fff;
-            border-right: 1px solid #e8ebf2;
-        }
-        .brand { font-size: 21px; font-weight: 800; margin-bottom: 42px; }
-        .brand span { color: #4f46e5; }
-        .nav-label {
-            margin: 24px 10px 10px;
-            color: #98a1b3;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-        .nav-item {
-            display: block;
-            margin: 5px 0;
-            padding: 12px;
-            border-radius: 9px;
-            color: #68738a;
-            font-size: 14px;
-            text-decoration: none;
-        }
-        .nav-item.active { background: #eeedff; color: #4f46e5; font-weight: 700; }
         main { flex: 1; min-width: 0; }
         header {
             height: 76px;
@@ -60,7 +35,12 @@
             color: #4f46e5;
             font-weight: 800;
         }
-        .content { max-width: 1500px; margin: auto; padding: 32px; }
+        .content {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 32px;
+}
         .page-heading {
             display: flex;
             align-items: center;
@@ -196,19 +176,8 @@
 </head>
 <body>
 <div class="layout">
-    <aside class="sidebar">
-        <div class="brand">Supply<span>Flow</span></div>
-
-        <div class="nav-label">PROCUREMENT</div>
-        <a class="nav-item active" href="{{ route('procurement.dashboard') }}">▦ &nbsp; Dashboard</a>
-
-    </aside>
 
     <main>
-        <header>
-            <div class="header-title">Procurement Dashboard</div>
-            <div class="avatar">P</div>
-        </header>
 
         <div class="content">
             <div class="page-heading">
@@ -244,6 +213,86 @@
                     <div class="stat-note">Penawaran berstatus accepted</div>
                 </div>
             </section>
+
+
+<section class="panel" style="margin-bottom: 24px;">
+    <div class="panel-heading">
+        <div>
+            <h2>Perbandingan Harga Barang</h2>
+            <div class="muted">
+                Harga dinormalisasi ke satuan dasar dan sudah memperhitungkan PPN.
+                Penawaran kedaluwarsa tidak disertakan.
+            </div>
+        </div>
+    </div>
+
+    @forelse ($comparisonGroups as $group)
+        <div style="padding: 20px 24px; border-bottom: 1px solid #edf0f5;">
+            <h3 style="margin: 0 0 4px; font-size: 15px;">
+                {{ $group['good']->name }}
+            </h3>
+            <div class="muted" style="margin-bottom: 14px;">
+                Harga per {{ $group['base_unit']->name }}
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Barang Supplier</th>
+                            <th>Harga Setelah PPN</th>
+                            <th>Status</th>
+                            <th>Berlaku Sampai</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($group['offers'] as $index => $offer)
+                            <tr>
+                                <td>
+                                    <div class="company">
+                                        {{ $offer['quotation']->supplier->company_name ?? 'Supplier' }}
+                                    </div>
+                                    <div class="subtext">
+                                        Sales: {{ $offer['quotation']->sales_name ?: '—' }}
+                                    </div>
+                                </td>
+                                <td>
+                                    {{ $offer['item']->supplier_item_name }}
+                                    <div class="subtext">
+                                        Harga dinormalisasi ke {{ $group['base_unit']->name }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="price">
+                                        Rp {{ number_format($offer['unit_price'], 2, ',', '.') }}
+                                    </div>
+                                    @if ($index === 0)
+                                        <span class="status accepted">Harga terendah</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    {{ ucwords(str_replace('_', ' ', $offer['quotation']->status)) }}
+                                </td>
+                                <td>
+                                    {{ $offer['quotation']->valid_until
+                                        ? $offer['quotation']->valid_until->format('d/m/Y')
+                                        : 'Tidak ditentukan' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @empty
+        <div class="empty">
+            Belum ada penawaran aktif yang dapat dibandingkan.
+            Pastikan penawaran memiliki barang standar dan satuan yang sesuai.
+        </div>
+    @endforelse
+</section>
+
 
             <section class="panel">
                 <div class="panel-heading">
