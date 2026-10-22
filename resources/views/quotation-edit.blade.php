@@ -141,7 +141,15 @@
                 </div>
 
                 <div class="field">
-                    <label for="unit_id">Satuan Terstandar *</label>
+                    <label for="quantity_in_base_unit">Isi per Satuan Supplier *</label>
+                    <input id="quantity_in_base_unit" name="quantity_in_base_unit"
+                        type="number" min="0.000001" step="any"
+                        value="{{ old('quantity_in_base_unit', (float) $item->quantity_in_base_unit) }}"
+                        required>
+                </div>
+
+                <div class="field">
+                    <label for="unit_id">Satuan Isi *</label>
                     <select id="unit_id" name="unit_id" required>
                         <option value="">Pilih satuan</option>
                         @foreach ($units as $unit)

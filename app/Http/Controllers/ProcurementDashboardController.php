@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Services\OfferComparison;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +22,7 @@ class ProcurementDashboardController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         $query = Quotation::with([
-            'supplier',
+            'supplier' => fn ($q) => $q->withCount(['quotations', 'salesContacts']),
             'items.standardGood',
             'items.unit',
         ])->latest();
@@ -62,56 +63,7 @@ class ProcurementDashboardController extends Controller
             ->get();
 
         // Harga dihitung setelah PPN, lalu dinormalisasi ke satuan dasar.
-        $comparisonRows = $items->map(function ($item) {
-            $good = $item->standardGood;
-            $unit = $item->unit;
-
-            if (!$good || !$unit || !$good->baseUnit) {
-                return null;
-            }
-
-            $baseUnitId = (int) $good->base_unit_id;
-
-            if ((int) $unit->id === $baseUnitId) {
-                $factor = 1;
-            } elseif ((int) $unit->base_unit_id === $baseUnitId) {
-                $factor = (float) $unit->conversion_factor;
-            } else {
-                // Satuan tidak bisa dikonversi dengan aman.
-                return null;
-            }
-
-            if ($factor <= 0) {
-                return null;
-            }
-
-            $quotation = $item->quotation;
-            $price = (float) $item->quoted_price;
-
-            if ($quotation->vat_type === 'excluded') {
-                $price *= 1 + ((float) $quotation->vat_rate / 100);
-            }
-
-            return [
-                'good' => $good,
-                'base_unit' => $good->baseUnit,
-                'quotation' => $quotation,
-                'item' => $item,
-                'unit_price' => $price / $factor,
-            ];
-        })->filter()->values();
-
-        $comparisonGroups = $comparisonRows
-            ->groupBy(fn ($row) => $row['good']->id)
-            ->map(function ($rows) {
-                $offers = $rows->sortBy('unit_price')->values();
-
-                return [
-                    'good' => $offers->first()['good'],
-                    'base_unit' => $offers->first()['base_unit'],
-                    'offers' => $offers,
-                ];
-            })->values();
+        $comparisonGroups = OfferComparison::group($items);
 
         return view('procurement-dashboard', compact(
             'stats',
@@ -198,6 +150,9 @@ public function update(Request $request, Quotation $quotation)
         'unit_id' => [
             'required', 'integer', 'exists:measurement_units,id',
         ],
+        'quantity_in_base_unit' => [
+            'required', 'numeric', 'min:0.000001',
+        ],
         'quoted_price' => [
             'required', 'numeric', 'min:0.01',
         ],
@@ -216,6 +171,8 @@ public function update(Request $request, Quotation $quotation)
         'notes' => ['nullable', 'string', 'max:2000'],
     ]);
 
+    SupplierOfferController::ensureUnitMatchesGood($data);
+
     DB::transaction(function () use ($quotation, $data) {
         $quotation->update([
             'vat_type' => $data['vat_type'],
@@ -232,6 +189,7 @@ public function update(Request $request, Quotation $quotation)
             'supplier_item_code' => $data['supplier_item_code'] ?? null,
             'supplier_unit_text' => $data['supplier_unit_text'],
             'unit_id' => $data['unit_id'],
+            'quantity_in_base_unit' => $data['quantity_in_base_unit'],
             'quoted_price' => $data['quoted_price'],
             'minimum_order_quantity' => $data['minimum_order_quantity'],
             'notes' => $data['notes'] ?? null,

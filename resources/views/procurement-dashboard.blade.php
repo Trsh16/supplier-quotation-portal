@@ -315,7 +315,15 @@
                                 <td>
                                     {{ $offer['item']->supplier_item_name }}
                                     <div class="subtext">
-                                        Harga dinormalisasi ke {{ $group['base_unit']->name }}
+                                        Rp {{ number_format((float) $offer['item']->quoted_price, 0, ',', '.') }}
+                                        / {{ $offer['item']->supplier_unit_text }}
+                                        (1 {{ $offer['item']->supplier_unit_text }}
+                                        = {{ (float) $offer['item']->quantity_in_base_unit }}
+                                        {{ $offer['item']->unit->code }})
+                                    </div>
+                                    <div class="subtext">
+                                        PPN {{ $offer['quotation']->vat_type === 'included' ? 'termasuk' : 'belum termasuk' }}
+                                        &middot; MOQ {{ (float) $offer['item']->minimum_order_quantity }}
                                     </div>
                                 </td>
                                 <td>
@@ -394,6 +402,13 @@
                                     <div class="subtext">
                                         Sales: {{ $quotation->sales_name ?: '—' }}
                                     </div>
+                                    @if (($quotation->supplier->quotations_count ?? 0) > 1)
+                                        <div class="subtext">
+                                            Supplier lama &middot;
+                                            {{ $quotation->supplier->quotations_count }} penawaran,
+                                            {{ $quotation->supplier->sales_contacts_count }} sales
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
                                     @if ($item)

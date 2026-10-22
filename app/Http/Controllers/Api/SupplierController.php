@@ -8,7 +8,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
 
 class SupplierController extends Controller
 {
@@ -39,7 +38,9 @@ class SupplierController extends Controller
             ),
         ]);
 
-        $normalizedName = Str::lower($request->input('company_name', ''));
+        $normalizedName = Supplier::normalizeName(
+            (string) $request->input('company_name', '')
+        );
 
         $validator = Validator::make(
             $request->all(),

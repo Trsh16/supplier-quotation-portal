@@ -58,6 +58,12 @@
         .error { color: #b91c1c; }
         .hint { color: #64748b; line-height: 1.5; }
         .required-note { color: #b91c1c; font-size: 13px; }
+
+        .row { display: flex; gap: 8px; align-items: center; }
+        .row span { white-space: nowrap; }
+        .row input { flex: 1; }
+        .row select { flex: 2; }
+        .hp { position: absolute; left: -10000px; }
     </style>
 </head>
 <body>
@@ -136,28 +142,39 @@
         <input id="supplier_item_code" name="supplier_item_code"
                value="{{ old('supplier_item_code') }}" maxlength="100">
 
-        <label for="supplier_unit_text">Satuan yang Digunakan Supplier *</label>
+        <label for="supplier_unit_text">Satuan Jual Supplier *</label>
         <input id="supplier_unit_text" name="supplier_unit_text"
-               placeholder="Contoh: pcs, kg, dus"
+               placeholder="Contoh: dus, rim, jerigen, sak"
                value="{{ old('supplier_unit_text') }}"
                maxlength="100" required>
 
-        <label for="unit_id">Satuan Standar untuk Perbandingan *</label>
-        <select id="unit_id" name="unit_id" required>
-            <option value="">Pilih satuan standar</option>
-            @foreach ($units as $unit)
-                <option value="{{ $unit->id }}"
-                    @selected(old('unit_id') == $unit->id)>
-                    {{ $unit->name }} ({{ $unit->code }})
-                </option>
-            @endforeach
-        </select>
+        <label>Isi per Satuan Jual *</label>
+        <div class="row">
+            <span>1 satuan jual =</span>
+            <input id="quantity_in_base_unit" type="number"
+                   name="quantity_in_base_unit"
+                   min="0.000001" step="any"
+                   aria-label="Jumlah isi per satuan jual"
+                   value="{{ old('quantity_in_base_unit', 1) }}" required>
+            <select id="unit_id" name="unit_id" required
+                    aria-label="Satuan isi">
+                <option value="">Pilih satuan</option>
+                @foreach ($units as $unit)
+                    <option value="{{ $unit->id }}"
+                        @selected(old('unit_id') == $unit->id)>
+                        {{ $unit->name }} ({{ $unit->code }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
         <p class="hint">
-            Pilih satuan yang sesuai dengan harga yang ditawarkan.
-            Jika satuan supplier berbeda, pastikan faktor konversinya jelas.
+            Contoh: harga per dus berisi 12 pcs &rarr; isi <strong>12</strong>
+            dan pilih <strong>Pieces</strong>. Jerigen 5 liter &rarr; isi
+            <strong>5</strong> dan pilih <strong>Liter</strong>.
+            Dipakai untuk membandingkan harga antar supplier secara adil.
         </p>
 
-        <label for="quoted_price">Harga Penawaran per Satuan (IDR) *</label>
+        <label for="quoted_price">Harga per Satuan Jual (IDR) *</label>
         <input id="quoted_price" type="number" name="quoted_price"
                min="0.01" step="0.01"
                value="{{ old('quoted_price') }}" required>
@@ -193,6 +210,13 @@
         <label for="notes">Catatan Tambahan</label>
         <textarea id="notes" name="notes" rows="3"
                   maxlength="2000">{{ old('notes') }}</textarea>
+
+        {{-- Honeypot anti-bot: disembunyikan dari manusia. --}}
+        <div class="hp" aria-hidden="true">
+            <label for="website">Website</label>
+            <input id="website" name="website" tabindex="-1"
+                   autocomplete="off">
+        </div>
 
         <button type="submit">Kirim Penawaran</button>
     </form>

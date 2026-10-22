@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MeasurementUnit;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Supplier;
+use App\Models\StandardGood;
 use App\Models\SupplierSalesContact;
+use App\Services\OfferComparison;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class SupplierOfferController extends Controller
@@ -54,6 +58,11 @@ class SupplierOfferController extends Controller
                 'integer',
                 'exists:measurement_units,id',
             ],
+            'quantity_in_base_unit' => [
+                'required',
+                'numeric',
+                'min:0.000001',
+            ],
             'quoted_price' => ['required', 'numeric', 'min:0.01'],
             'minimum_order_quantity' => [
                 'required',
@@ -64,45 +73,53 @@ class SupplierOfferController extends Controller
             'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'valid_until' => ['required', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:2000'],
+
+            // Honeypot: field tersembunyi yang hanya diisi oleh bot.
+            'website' => ['prohibited'],
         ]);
+
+        self::ensureUnitMatchesGood($data);
 
         $token = (string) Str::uuid();
 
         // Simpan semua data penawaran dalam satu transaksi database.
         $quotation = DB::transaction(function () use ($data, $token) {
-            $normalizedName = Str::lower(
-                Str::squish($data['company_name'])
+            $normalizedName = Supplier::normalizeName($data['company_name']);
+
+            $supplier = Supplier::firstOrCreate(
+                ['normalized_company_name' => $normalizedName],
+                [
+                    'company_name' => Str::squish($data['company_name']),
+                    'email' => $data['email'],
+                    'phone' => $data['phone'] ?? null,
+                    'address' => $data['address'] ?? null,
+                ]
             );
 
-            $supplier = Supplier::where(
-                'normalized_company_name',
-                $normalizedName
-            )->first();
-
-            if (!$supplier) {
-                $supplier = Supplier::create([
-                    'company_name' => $data['company_name'],
-                    'normalized_company_name' => $normalizedName,
-                    'email' => $data['email'],
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                ]);
-            } else {
-                $supplier->update([
-                    'company_name' => $data['company_name'],
-                    'email' => $data['email'],
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                ]);
+            // Form ini publik: data master supplier yang sudah ada tidak
+            // ditimpa, hanya field yang masih kosong yang dilengkapi.
+            if (!$supplier->wasRecentlyCreated) {
+                $supplier->fill(array_filter([
+                    'email' => $supplier->email ? null : $data['email'],
+                    'phone' => $supplier->phone ? null : ($data['phone'] ?? null),
+                    'address' => $supplier->address ? null : ($data['address'] ?? null),
+                ]))->save();
             }
 
-            $contact = SupplierSalesContact::create([
+            // Sales yang sama (email sama) dipakai ulang; sales baru ditambahkan.
+            $contact = SupplierSalesContact::firstOrNew([
                 'supplier_id' => $supplier->id,
-                'name' => $data['sales_name'],
-                'email' => $data['sales_email'],
-                'phone' => $data['sales_phone'] ?? null,
-                'is_primary' => false,
+                'email' => Str::lower($data['sales_email']),
             ]);
+            if (!$contact->exists) {
+                // Sales pertama dari supplier otomatis jadi kontak utama.
+                $contact->is_primary = !$supplier->salesContacts()->exists();
+            }
+
+            $contact->fill([
+                'name' => $data['sales_name'],
+                'phone' => $data['sales_phone'] ?? $contact->phone,
+            ])->save();
 
             $quotation = Quotation::create([
                 'public_token' => $token,
@@ -128,7 +145,7 @@ class SupplierOfferController extends Controller
                 'supplier_item_code' => $data['supplier_item_code'] ?? null,
                 'supplier_unit_text' => $data['supplier_unit_text'],
                 'unit_id' => $data['unit_id'],
-                'quantity_in_base_unit' => 1,
+                'quantity_in_base_unit' => $data['quantity_in_base_unit'],
                 'quoted_price' => $data['quoted_price'],
                 'minimum_order_quantity' => $data['minimum_order_quantity'],
                 'notes' => $data['notes'] ?? null,
@@ -176,6 +193,24 @@ class SupplierOfferController extends Controller
         return redirect()->route('supplier-offer.receipt', [
             'token' => $token,
         ]);
+    }
+
+    /**
+     * Tolak satuan yang tidak bisa dikonversi ke satuan dasar barang,
+     * agar setiap penawaran pasti bisa ikut dibandingkan.
+     */
+    public static function ensureUnitMatchesGood(array $data): void
+    {
+        $good = StandardGood::with('baseUnit')
+            ->findOrFail($data['standard_good_id']);
+        $unit = MeasurementUnit::findOrFail($data['unit_id']);
+
+        if (!OfferComparison::isConvertible($unit, $good)) {
+            throw ValidationException::withMessages([
+                'unit_id' => "Satuan {$unit->name} tidak dapat dikonversi ke "
+                    . "satuan dasar {$good->name} ({$good->baseUnit->name}).",
+            ]);
+        }
     }
 
     public function receipt(string $token)
