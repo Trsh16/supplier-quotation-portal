@@ -28,3 +28,8 @@ Route::get('/', [ProcurementDashboardController::class, 'index'])
 
 Route::get('/suppliers', [ProcurementDashboardController::class, 'index'])
     ->name('suppliers.index');
+
+Route::delete('/quotations/{quotation}', [
+    \App\Http\Controllers\ProcurementDashboardController::class,
+    'destroy'
+])->name('quotations.destroy');

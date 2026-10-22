@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProcurementDashboardController extends Controller
 {
@@ -119,4 +120,17 @@ class ProcurementDashboardController extends Controller
             'comparisonGroups'
         ));
     }
+
+    public function destroy(\App\Models\Quotation $quotation)
+{
+    DB::transaction(function () use ($quotation) {
+        $quotation->documents()->delete();
+        $quotation->items()->delete();
+        $quotation->delete();
+    });
+
+    return redirect()
+        ->route('procurement.dashboard')
+        ->with('success', 'Penawaran berhasil dihapus.');
+}
 }

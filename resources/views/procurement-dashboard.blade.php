@@ -117,6 +117,18 @@
             font-size: 13px;
             vertical-align: top;
         }
+        .delete-button {
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.delete-button:hover {
+    background: #b91c1c;
+}
         .company { font-weight: 700; margin-bottom: 5px; }
         .subtext { color: #8993a7; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
         .price { font-weight: 750; white-space: nowrap; }
@@ -178,9 +190,17 @@
 <div class="layout">
 
     <main>
+  
+<div class="content">
 
-        <div class="content">
-            <div class="page-heading">
+    @if (session('success'))
+        <div style="padding: 12px; margin-bottom: 16px; background: #dcfce7; color: #166534; border-radius: 8px;">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    <div class="page-heading">
+
                 <div>
                     <h1>Penawaran Supplier</h1>
                     <div class="muted">Pantau penawaran yang masuk dan tinjau harga dari supplier.</div>
@@ -319,6 +339,7 @@
                             <th>Tanggal Masuk</th>
                             <th>Status</th>
                             <th>Referensi</th>
+                            <th>Aksi</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -382,10 +403,24 @@
                                 <td>
                                     <div class="subtext token">{{ $quotation->public_token }}</div>
                                 </td>
+                                <td>
+    <form
+        action="{{ route('quotations.destroy', $quotation) }}"
+        method="POST"
+        onsubmit="return confirm('Yakin ingin menghapus penawaran ini?');"
+    >
+        @csrf
+        @method('DELETE')
+
+        <button type="submit" class="delete-button">
+            Hapus
+        </button>
+    </form>
+</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="empty">
+                                <td colspan="8" class="empty">
                                     Belum ada penawaran yang cocok.
                                     @if ($search)
                                         Coba kata kunci lain.

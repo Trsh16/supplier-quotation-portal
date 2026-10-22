@@ -39,21 +39,19 @@ class SupplierOfferController extends Controller
             'sales_phone' => ['nullable', 'string', 'max:50'],
 
             'standard_good_id' => [
-                'nullable', 'integer', 'exists:standard_goods,id',
-            ],
+    'required', 'integer', 'exists:standard_goods,id',
+],
             'supplier_item_name' => ['required', 'string', 'max:255'],
             'supplier_item_code' => ['nullable', 'string', 'max:100'],
             'supplier_unit_text' => ['required', 'string', 'max:100'],
             'unit_id' => [
-                'nullable', 'integer', 'exists:measurement_units,id',
-            ],
+    'required', 'integer', 'exists:measurement_units,id',
+],
             'quoted_price' => ['required', 'numeric', 'min:0.01'],
-            'minimum_order_quantity' => [
-                'required', 'numeric', 'min:0.0001',
-            ],
+            'minimum_order_quantity' => ['required', 'numeric', 'min:0.0001'],
             'vat_type' => ['required', 'in:included,excluded'],
-            'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'valid_until' => ['nullable', 'date', 'after_or_equal:today'],
+'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'valid_until' => ['required', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
