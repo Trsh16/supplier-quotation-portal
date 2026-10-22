@@ -16,12 +16,15 @@ services:
       DB_DATABASE: supplier_quotation
       DB_USERNAME: supplier_user
       DB_PASSWORD: supplier_password
+      MAIL_MAILER: log
+      PROCUREMENT_USERNAME: ${PROCUREMENT_USERNAME:-procurement}
+      PROCUREMENT_PASSWORD: ${PROCUREMENT_PASSWORD:-procurement123}
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - .:/var/www/html
-    command: sh -c "if [ ! -f .env ]; then cp .env.example .env; fi; if ! grep -q '^APP_KEY=base64:' .env; then php artisan key:generate --force; fi; php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
+    command: sh -c "if [ ! -f .env ]; then cp .env.example .env; fi; if ! grep -q '^APP_KEY=base64:' .env; then php artisan key:generate --force; fi; php artisan migrate --force --seed && php artisan serve --host=0.0.0.0 --port=8000"
 
   db:
     image: mysql:8.4
