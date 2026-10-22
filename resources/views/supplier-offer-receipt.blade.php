@@ -137,8 +137,8 @@
                 Cetak / Simpan PDF
             </button>
 
-            <a class="button secondary" href="{{ url('/') }}">
-                Kembali ke Dashboard
+            <a class="button secondary" href="{{ route('supplier-offer.create') }}">
+                Kirim Penawaran Lain
             </a>
         </div>
     </main>
