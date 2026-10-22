@@ -16,7 +16,9 @@ Route::get('/supplier-qr.svg', [SupplierQrController::class, 'image'])
 Route::get('/supplier-offer', [SupplierOfferController::class, 'create'])
     ->name('supplier-offer.create');
 
+// Batasi spam: maksimal 5 kiriman per menit per IP.
 Route::post('/supplier-offer', [SupplierOfferController::class, 'store'])
+    ->middleware('throttle:5,1')
     ->name('supplier-offer.store');
 
 Route::get('/supplier-offer/receipt/{token}', [
@@ -25,7 +27,7 @@ Route::get('/supplier-offer/receipt/{token}', [
 ])->name('supplier-offer.receipt');
 
 // Internal: dashboard dan seluruh aksi procurement wajib terautentikasi.
-Route::middleware(ProcurementBasicAuth::class)->group(function () {
+Route::middleware([ProcurementBasicAuth::class, 'throttle:60,1'])->group(function () {
     Route::get('/', [ProcurementDashboardController::class, 'index'])
         ->name('procurement.dashboard');
 
