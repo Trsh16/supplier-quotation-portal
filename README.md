@@ -28,7 +28,8 @@ Hanya itu. Saat container `app` pertama kali jalan, ia otomatis:
 | Bukti penerimaan | http://localhost:8000/supplier-offer/receipt/{token} | Publik, butuh token |
 | Dashboard procurement | http://localhost:8000/ | Basic Auth |
 
-**Login dashboard (default lokal):** `procurement` / `procurement123`. Nilai ini bisa diganti dengan variabel `PROCUREMENT_USERNAME` dan `PROCUREMENT_PASSWORD` saat menjalankan compose.
+**Login dashboard (default lokal):** `procurement`. Nilai ini bisa diganti dengan variabel `PROCUREMENT_USERNAME` dan `PROCUREMENT_PASSWORD` saat menjalankan compose.
+passwordnya: secured
 
 **Email** disimulasikan (`MAIL_MAILER=log`) dan ditulis ke `storage/logs/laravel.log`.
 
